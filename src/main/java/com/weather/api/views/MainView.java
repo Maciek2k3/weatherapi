@@ -8,6 +8,9 @@ import com.vaadin.server.VaadinRequest;
 import com.vaadin.spring.annotation.SpringUI;
 import com.vaadin.ui.*;
 import com.vaadin.ui.themes.ValoTheme;
+import com.weather.api.config.AdminConfig;
+import com.weather.api.domian.Mail;
+import com.weather.api.service.SmpleEmailService;
 import com.weather.api.service.WeatherService;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -15,11 +18,16 @@ import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
+import java.util.Optional;
 
 @SpringUI(path = "/weather")
 public class MainView extends UI {
     @Autowired
     private WeatherService weatherService;
+    @Autowired
+    private SmpleEmailService smpleEmailService;
+    @Autowired
+    private AdminConfig adminConfig;
 
     private VerticalLayout mainLayout;
     private NativeSelect<String> unitSelect;
@@ -37,7 +45,12 @@ public class MainView extends UI {
     private Label Wind;
     private Label FeelsLike;
     private Image iconImage;
+    private HorizontalLayout mailLayout;
+    private Button mailButton;
+    private Label mailLabel;
+    private TextField mailText;
 
+    private final String SUBJECT="Today weather";
 
     @Override
     protected void init(VaadinRequest vaadinRequest) {
@@ -48,61 +61,65 @@ public class MainView extends UI {
         dashboardTitle();
         dasshBoardDetails();
         serchButton.addClickListener(clickEvent -> {
-            if (!cityTextField.getValue().equals("")){
+            if (!cityTextField.getValue().equals("")) {
                 try {
                     updateUI();
+                    setMailHeader();
+                    mailForm();
+                    sendMail();
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
 
-            }else
-                    Notification.show("Please Enter city name");
+            } else
+                Notification.show("Please Enter city name");
         });
+
 
     }
 
     private void updateUI() throws JSONException {
-        String city=cityTextField.getValue();
+        String city = cityTextField.getValue();
         String defaultUnit;
         weatherService.setCityName(city);
-        if (unitSelect.getValue().equals("F")){
+        if (unitSelect.getValue().equals("F")) {
             weatherService.setUnit("imperials");
             unitSelect.setValue("F");
-            defaultUnit="\u00b0"+"F";
-        }else {
+            defaultUnit = "\u00b0" + "F";
+        } else {
             weatherService.setUnit("metric");
-            defaultUnit="\u00b0"+"C";
+            defaultUnit = "\u00b0" + "C";
             unitSelect.setValue("C");
         }
 
-        location.setValue("Currently in "+city);
-        JSONObject mainObject=weatherService.returnMain();
-        int temp=mainObject.getInt("temp");
-        currentTemp.setValue(temp+defaultUnit);
+        location.setValue("Currently in " + city);
+        JSONObject mainObject = weatherService.returnMain();
+        int temp = mainObject.getInt("temp");
+        currentTemp.setValue(temp + defaultUnit);
 
-        String iconCode=null;
-        String weatherDescriptionNew=null;
-        JSONArray jsonArray=weatherService.returnWeatherArray();
-        for (int i= 0; i<jsonArray.length();i++) {
-        JSONObject weatherObj=jsonArray.getJSONObject(i);
-        iconCode=weatherObj.getString("icon");
-        weatherDescriptionNew=weatherObj.getString("description");
+        String iconCode = null;
+        String weatherDescriptionNew = null;
+        JSONArray jsonArray = weatherService.returnWeatherArray();
+        for (int i = 0; i < jsonArray.length(); i++) {
+            JSONObject weatherObj = jsonArray.getJSONObject(i);
+            iconCode = weatherObj.getString("icon");
+            weatherDescriptionNew = weatherObj.getString("description");
         }
-        iconImage.setSource(new ExternalResource("http://openweathermap.org/img/wn/"+iconCode+"@2x.png"));
-        weatherDescription.setValue("Description: "+weatherDescriptionNew);
-        MinWeather.setValue("MinTemp: "+ weatherService.returnMain().getInt("temp_min")+"°"+unitSelect.getValue());
-        MaxWeather.setValue("MaxTemp: "+ weatherService.returnMain().getInt("temp_max")+"°"+unitSelect.getValue());
-        Pressure.setValue("Pressure: "+weatherService.returnMain().getInt("pressure")+"HPa");
-        Humidity.setValue("Humidity: "+weatherService.returnMain().getInt("humidity")+"%");
-        Wind.setValue("Wind: "+weatherService.returnWind().getInt("speed")+" knots");
-        FeelsLike.setValue("FeelsLike "+weatherService.returnMain().getDouble("feels_like")+"°"+unitSelect.getValue());
+        iconImage.setSource(new ExternalResource("http://openweathermap.org/img/wn/" + iconCode + "@2x.png"));
+        weatherDescription.setValue("Description: " + weatherDescriptionNew);
+        MinWeather.setValue("MinTemp: " + weatherService.returnMain().getInt("temp_min") + "°" + unitSelect.getValue());
+        MaxWeather.setValue("MaxTemp: " + weatherService.returnMain().getInt("temp_max") + "°" + unitSelect.getValue());
+        Pressure.setValue("Pressure: " + weatherService.returnMain().getInt("pressure") + "HPa");
+        Humidity.setValue("Humidity: " + weatherService.returnMain().getInt("humidity") + "%");
+        Wind.setValue("Wind: " + weatherService.returnWind().getInt("speed") + " knots");
+        FeelsLike.setValue("FeelsLike " + weatherService.returnMain().getDouble("feels_like") + "°" + unitSelect.getValue());
 
-        mainLayout.addComponents(dashboard,mainDescription);
+        mainLayout.addComponents(dashboard, mainDescription);
     }
 
 
     private void mainLayout() {
-        iconImage=new Image();
+        iconImage = new Image();
         mainLayout = new VerticalLayout();
         mainLayout.setWidth("100%");
         mainLayout.setSpacing(true);
@@ -119,12 +136,13 @@ public class MainView extends UI {
         mainLayout.addComponents(header);
 
     }
-    private void setLogo(){
-        HorizontalLayout logo=new HorizontalLayout();
+
+    private void setLogo() {
+        HorizontalLayout logo = new HorizontalLayout();
         logo.setDefaultComponentAlignment(Alignment.MIDDLE_CENTER);
         logo.setSpacing(true);
         logo.setMargin(true);
-        Image image=new Image(null,new ClassResource("/static/weatherLoggo.png"));
+        Image image = new Image(null, new ClassResource("/static/weatherLoggo.png"));
         logo.setWidth("256px");
         logo.setHeight("256px");
 
@@ -132,8 +150,9 @@ public class MainView extends UI {
         mainLayout.addComponents(logo);
 
     }
+
     private void setForm() {
-        HorizontalLayout formLayout=new HorizontalLayout();
+        HorizontalLayout formLayout = new HorizontalLayout();
 
         formLayout.setSpacing(true);
         formLayout.setMargin(true);
@@ -141,12 +160,12 @@ public class MainView extends UI {
 
         //mainLayout.addComponents(unitSelect);
 
-        cityTextField=new TextField();
+        cityTextField = new TextField();
         cityTextField.setWidth("80%");
         formLayout.addComponent(cityTextField);
 
-        unitSelect=new NativeSelect<>();
-        ArrayList<String> items=new ArrayList<>();
+        unitSelect = new NativeSelect<>();
+        ArrayList<String> items = new ArrayList<>();
         items.add("C");
         items.add("F");
         unitSelect.setItems(items);
@@ -154,70 +173,104 @@ public class MainView extends UI {
         formLayout.setDefaultComponentAlignment(Alignment.MIDDLE_CENTER);
         formLayout.addComponent(unitSelect);
 
-        serchButton=new Button();
+        serchButton = new Button();
         serchButton.setIcon(VaadinIcons.SEARCH);
         formLayout.addComponent(serchButton);
-
 
 
         mainLayout.addComponents(formLayout);
 
 
     }
-    private void dashboardTitle(){
-        dashboard=new HorizontalLayout();
+
+    private void dashboardTitle() {
+        dashboard = new HorizontalLayout();
         dashboard.setDefaultComponentAlignment(Alignment.MIDDLE_CENTER);
 
-        location=new Label("Currently in Krakow ");
+        location = new Label("Currently in Krakow ");
         location.addStyleName(ValoTheme.LABEL_H2);
         location.addStyleName(ValoTheme.LABEL_LIGHT);
 
-        currentTemp=new Label("10 °C");
+        currentTemp = new Label("10 °C");
         currentTemp.setStyleName(ValoTheme.LABEL_BOLD);
         currentTemp.setStyleName(ValoTheme.LABEL_H1);
 
-        dashboard.addComponents(location,iconImage,currentTemp);
+        dashboard.addComponents(location, iconImage, currentTemp);
 
 
     }
 
-    private void dasshBoardDetails(){
-        mainDescription=new HorizontalLayout();
+    private void dasshBoardDetails() {
+        mainDescription = new HorizontalLayout();
         mainDescription.setDefaultComponentAlignment(Alignment.MIDDLE_CENTER);
 
-        VerticalLayout decriptionLayout=new VerticalLayout();
+        VerticalLayout decriptionLayout = new VerticalLayout();
         decriptionLayout.setDefaultComponentAlignment(Alignment.MIDDLE_CENTER);
 
-        weatherDescription=new Label("Decription: Clear Skies");
+        weatherDescription = new Label("Decription: Clear Skies");
         weatherDescription.setStyleName(ValoTheme.LABEL_SUCCESS);
         decriptionLayout.addComponents(weatherDescription);
 
-        MinWeather=new Label("Min:53");
+        MinWeather = new Label("Min:53");
         decriptionLayout.addComponents(MinWeather);
 
-        MaxWeather=new Label("Max:53");
+        MaxWeather = new Label("Max:53");
         decriptionLayout.addComponents(MaxWeather);
 
-        VerticalLayout pressureLayout= new VerticalLayout();
+        VerticalLayout pressureLayout = new VerticalLayout();
         pressureLayout.setDefaultComponentAlignment(Alignment.MIDDLE_CENTER);
 
-        Pressure=new Label("Pressure 321Pa");
+        Pressure = new Label("Pressure 321Pa");
         pressureLayout.addComponents(Pressure);
 
-        Humidity=new Label("Humidity: 23");
+        Humidity = new Label("Humidity: 23");
         pressureLayout.addComponents(Humidity);
 
-        Wind=new Label("Wind: 23");
+        Wind = new Label("Wind: 23");
         pressureLayout.addComponents(Wind);
 
-        FeelsLike=new Label("FeelsLike: 23");
+        FeelsLike = new Label("FeelsLike: 23");
         pressureLayout.addComponents(FeelsLike);
 
-        mainDescription.addComponents(decriptionLayout,pressureLayout);
+        mainDescription.addComponents(decriptionLayout, pressureLayout);
 
 
     }
 
+    private void setMailHeader() {
+        HorizontalLayout mailHeader = new HorizontalLayout();
+        mailHeader.setDefaultComponentAlignment(Alignment.MIDDLE_RIGHT);
+        Label labelMail = new Label("Send Mail");
+        mailHeader.addComponent(labelMail);
+        mainLayout.addComponents(mailHeader);
+
+    }
+
+    private void mailForm() {
+        mailLayout = new HorizontalLayout();
+        mailLayout.setSpacing(true);
+        mailLayout.setMargin(true);
+
+        mailText = new TextField();
+        mailText.setWidth("80%");
+        mailLayout.addComponent(mailText);
+
+        mailButton = new Button();
+        mailButton.setIcon(VaadinIcons.ENTER);
+        mailLayout.addComponent(mailButton);
+        mainLayout.addComponent(mailLayout);
+
+    }
+
+    private void sendMail() {
+        mailButton.addClickListener(clickEvent -> {
+            if (!mailText.getValue().equals("")) {
+                smpleEmailService.send(new Mail(mailText.getValue(),adminConfig.getAdminMail(),SUBJECT,"New weather"));
+            } else
+                Notification.show("Please enter mail");
+        });
+
+    }
 
 
 }
