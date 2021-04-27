@@ -50,7 +50,7 @@ public class MainView extends UI {
     private Label mailLabel;
     private TextField mailText;
 
-    private final String SUBJECT="Today weather";
+    public final String SUBJECT="Today weather";
 
     @Override
     protected void init(VaadinRequest vaadinRequest) {
