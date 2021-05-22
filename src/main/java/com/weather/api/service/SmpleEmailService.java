@@ -1,6 +1,7 @@
 package com.weather.api.service;
 
 import com.weather.api.domian.Mail;
+import com.weather.api.scheduler.EmailScheduler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -17,11 +18,9 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class SmpleEmailService {
 
-    //@Autowired
-    //private MailCreatorService mailCreatorService;
-
     @Autowired
     private final JavaMailSender javaMailSender;
+
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SimpleMailMessage.class);
 
@@ -45,10 +44,4 @@ public class SmpleEmailService {
         return mailMessage;
     }
 
-
-  /* Mail mailBuild = Mail.builder()
-            .mailTo("Test@gmail.com")
-            .toCc("mail@gmail.com")
-            .subject(" ALL Field Test")
-            .message("No message").build();*/
 }
